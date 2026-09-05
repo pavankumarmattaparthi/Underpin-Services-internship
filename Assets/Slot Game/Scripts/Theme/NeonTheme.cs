@@ -102,7 +102,7 @@ public static class NeonTheme
         pixels[idx] = AlphaOver(srcWithAlpha, pixels[idx]);
     }
 
-    private static Sprite ToSprite(Texture2D tex, Vector4 border = default)
+    private static Sprite ToSprite(Texture2D tex, Vector4 border = default, float pixelsPerUnit = 100f)
     {
         tex.wrapMode = TextureWrapMode.Clamp;
         tex.filterMode = FilterMode.Bilinear;
@@ -112,7 +112,7 @@ public static class NeonTheme
             tex,
             new Rect(0, 0, tex.width, tex.height),
             new Vector2(0.5f, 0.5f),
-            100f,
+            pixelsPerUnit,
             0,
             SpriteMeshType.FullRect,
             border
@@ -257,6 +257,13 @@ public static class NeonTheme
     // SYMBOL ICONS (reel sprites)
     // =========================================================
 
+    // The reel's belt positions the symbols childSpacing (1.5) world
+    // units apart, and each symbol GameObject already carries a 1.3x
+    // local scale from the scene. Sizing the icon to 0.9 world units
+    // here means it displays at 0.9 * 1.3 = 1.17 units tall - a clear
+    // gap under the 1.5 spacing, so neighboring symbols never overlap.
+    private const float SymbolWorldSize = 0.9f;
+
     public static Sprite CreateSymbolSprite(SlotGameManager.SlorRell symbol, int size = 256)
     {
         Texture2D tex = new Texture2D(size, size, TextureFormat.RGBA32, false);
@@ -289,7 +296,7 @@ public static class NeonTheme
         }
 
         tex.SetPixels(pixels);
-        return ToSprite(tex);
+        return ToSprite(tex, default, size / SymbolWorldSize);
     }
 
     private static void DrawBadge(Color[] pixels, int size, Color accent)
