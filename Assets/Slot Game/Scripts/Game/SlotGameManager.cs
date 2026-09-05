@@ -1,5 +1,7 @@
 using System.Collections;
+using TMPro;
 using UnityEngine;
+using UnityEngine.UI;
 
 public class SlotGameManager : MonoBehaviour
 {
@@ -95,6 +97,56 @@ public class SlotGameManager : MonoBehaviour
         if (Instance == null)
             Instance = this;
 
+        ApplyGlobalNeonTint();
+    }
+
+    // Recolors every existing sprite/image/text toward the neon-purple
+    // palette so the whole scene reads as one cohesive re-theme, without
+    // needing to know every background/frame object by name. Reel
+    // symbols are skipped here because SlotReel replaces their sprites
+    // entirely with freshly drawn neon icons. Anything explicitly
+    // restyled afterward (SlotUI's buttons/gold text, which run in
+    // Start - always after every Awake) simply overrides this pass.
+    private void ApplyGlobalNeonTint()
+    {
+        SpriteRenderer[] allSprites = FindObjectsByType<SpriteRenderer>(FindObjectsSortMode.None);
+
+        foreach (SpriteRenderer sr in allSprites)
+        {
+            if (IsReelSymbol(sr.transform))
+                continue;
+
+            Color tint = NeonTheme.GlobalTint;
+            tint.a = sr.color.a;
+            sr.color = tint;
+        }
+
+        Image[] allImages = FindObjectsByType<Image>(FindObjectsSortMode.None);
+
+        foreach (Image img in allImages)
+        {
+            Color tint = NeonTheme.GlobalTint;
+            tint.a = img.color.a;
+            img.color = tint;
+        }
+
+        TMP_Text[] allTexts = FindObjectsByType<TMP_Text>(FindObjectsSortMode.None);
+
+        foreach (TMP_Text text in allTexts)
+        {
+            text.fontStyle |= FontStyles.Bold;
+            text.outlineWidth = 0.15f;
+            text.outlineColor = NeonTheme.NeonPurple;
+        }
+    }
+
+    private bool IsReelSymbol(Transform t)
+    {
+        Transform parent = t.parent;
+
+        return parent == slotReel1.transform ||
+               parent == slotReel2.transform ||
+               parent == slotReel3.transform;
     }
 
     public bool SetBet(int betAmount)
@@ -232,6 +284,15 @@ public class SlotGameManager : MonoBehaviour
             slotUI.ButtonState(true);
 
             slotUI.UpdateUI();
+
+            if (prize > 0)
+            {
+                slotReel1.PulseWin();
+                slotReel2.PulseWin();
+                slotReel3.PulseWin();
+
+                slotUI.PlayWinCelebration(prize);
+            }
         }
     }
 

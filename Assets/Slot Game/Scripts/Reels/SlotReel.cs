@@ -22,6 +22,92 @@ public class SlotReel : MonoBehaviour
     [Header("Spin Duration")]
     [SerializeField] private float additionalSpinDuration = 0f;
 
+    // Fraction of the spin (from the end) spent easing speed down to a
+    // near-stop, instead of the reel slamming from full speed to zero.
+    private const float DecelerationPortion = 0.35f;
+
+    // Brief suspenseful hold once the reel is nearly stopped, before the
+    // result actually reveals - the "anticipation" beat real slot
+    // machines use.
+    private const float AnticipationHold = 0.15f;
+
+
+    // =========================================================
+    // NEON THEME
+    // =========================================================
+
+    private void Awake()
+    {
+        ApplySymbolArt();
+    }
+
+    private void ApplySymbolArt()
+    {
+        int childCount = transform.childCount;
+
+        for (int i = 0; i < childCount; i++)
+        {
+            Transform child = transform.GetChild(i);
+            SpriteRenderer spriteRenderer = child.GetComponent<SpriteRenderer>();
+
+            if (spriteRenderer == null)
+                continue;
+
+            if (System.Enum.TryParse(child.name, true, out SlotGameManager.SlorRell symbol) &&
+                symbol != SlotGameManager.SlorRell.Nun)
+            {
+                spriteRenderer.sprite = NeonTheme.CreateSymbolSprite(symbol);
+                spriteRenderer.color = Color.white;
+            }
+        }
+    }
+
+    // Pulses whichever belt symbol is currently sitting on the payline -
+    // called by SlotGameManager when this reel took part in a win.
+    public void PulseWin()
+    {
+        StartCoroutine(PulseWinRoutine());
+    }
+
+    private IEnumerator PulseWinRoutine()
+    {
+        Transform target = null;
+        string resultName = slorRell.ToString();
+        float targetY = SlotGameManager.Instance.targetY;
+
+        for (int i = 0; i < transform.childCount; i++)
+        {
+            Transform child = transform.GetChild(i);
+
+            if (!string.Equals(child.name, resultName, System.StringComparison.OrdinalIgnoreCase))
+                continue;
+
+            if (Mathf.Abs(child.localPosition.y - targetY) < 0.05f)
+            {
+                target = child;
+                break;
+            }
+        }
+
+        if (target == null)
+            yield break;
+
+        Vector3 baseScale = target.localScale;
+        float duration = 0.9f;
+        float elapsed = 0f;
+
+        while (elapsed < duration)
+        {
+            elapsed += Time.deltaTime;
+            float t = elapsed / duration;
+            float pulse = 1f + Mathf.Sin(t * Mathf.PI * 3f) * 0.18f * (1f - t);
+            target.localScale = baseScale * pulse;
+            yield return null;
+        }
+
+        target.localScale = baseScale;
+    }
+
 
     // =========================================================
     // START SPIN
@@ -61,11 +147,22 @@ public class SlotReel : MonoBehaviour
             SlotGameManager.Instance.spinDuration +
             additionalSpinDuration;
 
+        float decelStart = 1f - DecelerationPortion;
+
         while (timer < totalSpinDuration)
         {
             float deltaTime = Time.deltaTime;
 
-            MoveChildren(currentSpinSpeed, deltaTime);
+            float progress = totalSpinDuration > 0f ? timer / totalSpinDuration : 1f;
+            float speedMultiplier = 1f;
+
+            if (progress > decelStart)
+            {
+                float t = Mathf.InverseLerp(decelStart, 1f, progress);
+                speedMultiplier = 1f - NeonTheme.EaseOutCubic(t) * 0.85f;
+            }
+
+            MoveChildren(currentSpinSpeed * speedMultiplier, deltaTime);
 
             timer += deltaTime;
 
@@ -74,8 +171,10 @@ public class SlotReel : MonoBehaviour
 
 
         // -----------------------------------------------------
-        // STOP IMMEDIATELY
+        // ANTICIPATION HOLD, THEN REVEAL
         // -----------------------------------------------------
+
+        yield return new WaitForSeconds(AnticipationHold);
 
         isSpinning = false;
 

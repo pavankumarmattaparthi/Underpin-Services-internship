@@ -1,5 +1,7 @@
+using System.Collections;
 using TMPro;
 using UnityEngine;
+using UnityEngine.EventSystems;
 using UnityEngine.UI;
 
 public class SlotUI : MonoBehaviour
@@ -25,8 +27,182 @@ public class SlotUI : MonoBehaviour
 
         exitBtn.onClick.AddListener(ExitBtnPressed);
 
+        ApplyNeonTheme();
+
         // Update UI when the game starts
         UpdateUI();
+    }
+
+    // =========================================================
+    // NEON THEME
+    // =========================================================
+
+    private void ApplyNeonTheme()
+    {
+        StyleBetButton(tenGoldBetBtn, NeonTheme.NeonPink);
+        StyleBetButton(fiftyGoldBetBtn, NeonTheme.NeonPurple);
+        StyleBetButton(hundredGoldBetBtn, NeonTheme.NeonGold);
+        StyleBetButton(exitBtn, NeonTheme.NeonCyan);
+
+        StyleGlowText(totalGoldText, NeonTheme.NeonGold);
+        StyleGlowText(betText, NeonTheme.NeonCyan);
+    }
+
+    private void StyleBetButton(Button button, Color accent)
+    {
+        if (button == null)
+            return;
+
+        Image image = button.image;
+
+        if (image != null)
+        {
+            image.sprite = NeonTheme.CreateRoundedPanel(
+                220, 60, 16,
+                NeonTheme.PanelFill, NeonTheme.BackgroundBottom,
+                accent, 3,
+                10, accent
+            );
+            image.type = Image.Type.Sliced;
+            image.color = Color.white;
+        }
+
+        AddButtonBounce(button);
+    }
+
+    private void StyleGlowText(TMP_Text text, Color accent)
+    {
+        if (text == null)
+            return;
+
+        text.color = Color.white;
+        text.fontStyle = FontStyles.Bold;
+        text.outlineWidth = 0.2f;
+        text.outlineColor = accent;
+    }
+
+    private void AddButtonBounce(Button button)
+    {
+        EventTrigger trigger = button.gameObject.GetComponent<EventTrigger>();
+
+        if (trigger == null)
+            trigger = button.gameObject.AddComponent<EventTrigger>();
+
+        RectTransform rect = button.GetComponent<RectTransform>();
+        Vector3 baseScale = rect.localScale;
+
+        AddTriggerEntry(trigger, EventTriggerType.PointerEnter, () => StartCoroutine(ScaleTo(rect, baseScale * 1.08f, 0.12f)));
+        AddTriggerEntry(trigger, EventTriggerType.PointerExit, () => StartCoroutine(ScaleTo(rect, baseScale, 0.12f)));
+        AddTriggerEntry(trigger, EventTriggerType.PointerDown, () => StartCoroutine(ScaleTo(rect, baseScale * 0.94f, 0.06f)));
+        AddTriggerEntry(trigger, EventTriggerType.PointerUp, () => StartCoroutine(ScaleTo(rect, baseScale * 1.08f, 0.08f)));
+    }
+
+    private void AddTriggerEntry(EventTrigger trigger, EventTriggerType type, System.Action action)
+    {
+        EventTrigger.Entry entry = new EventTrigger.Entry { eventID = type };
+        entry.callback.AddListener((_) => action());
+        trigger.triggers.Add(entry);
+    }
+
+    private IEnumerator ScaleTo(RectTransform rect, Vector3 targetScale, float duration)
+    {
+        Vector3 start = rect.localScale;
+        float elapsed = 0f;
+
+        while (elapsed < duration)
+        {
+            elapsed += Time.deltaTime;
+            rect.localScale = Vector3.Lerp(start, targetScale, elapsed / duration);
+            yield return null;
+        }
+
+        rect.localScale = targetScale;
+    }
+
+    // =========================================================
+    // WIN CELEBRATION
+    // =========================================================
+
+    public void PlayWinCelebration(int prizeAmount)
+    {
+        StartCoroutine(WinCelebrationRoutine(prizeAmount));
+    }
+
+    private IEnumerator WinCelebrationRoutine(int prizeAmount)
+    {
+        SpawnBurst();
+
+        int endGold = SlotGameManager.Instance.TotalGold;
+        int startGold = endGold - prizeAmount;
+
+        float duration = 0.6f;
+        float elapsed = 0f;
+
+        while (elapsed < duration)
+        {
+            elapsed += Time.deltaTime;
+            int shown = Mathf.RoundToInt(Mathf.Lerp(startGold, endGold, elapsed / duration));
+            totalGoldText.text = shown.ToString();
+            yield return null;
+        }
+
+        totalGoldText.text = endGold.ToString();
+    }
+
+    private void SpawnBurst()
+    {
+        const int count = 12;
+        Color[] palette =
+        {
+            NeonTheme.NeonPink, NeonTheme.NeonGold, NeonTheme.NeonCyan, NeonTheme.NeonPurple
+        };
+
+        for (int i = 0; i < count; i++)
+        {
+            GameObject spark = new GameObject("WinSpark");
+            spark.transform.SetParent(transform, false);
+
+            Image image = spark.AddComponent<Image>();
+            Color color = palette[i % palette.Length];
+            image.sprite = NeonTheme.CreateGlowDot(64, color);
+            image.raycastTarget = false;
+
+            RectTransform rect = spark.GetComponent<RectTransform>();
+            rect.sizeDelta = new Vector2(40, 40);
+            rect.anchoredPosition = Vector2.zero;
+
+            float angle = i * (360f / count) * Mathf.Deg2Rad;
+            Vector2 direction = new Vector2(Mathf.Cos(angle), Mathf.Sin(angle));
+
+            StartCoroutine(AnimateSpark(rect, image, direction));
+        }
+    }
+
+    private IEnumerator AnimateSpark(RectTransform rect, Image image, Vector2 direction)
+    {
+        float duration = 0.7f;
+        float elapsed = 0f;
+        float distance = 160f;
+
+        Color startColor = image.color;
+
+        while (elapsed < duration)
+        {
+            elapsed += Time.deltaTime;
+            float t = elapsed / duration;
+            float eased = NeonTheme.EaseOutCubic(t);
+
+            rect.anchoredPosition = direction * distance * eased;
+            rect.localScale = Vector3.one * (1f - t * 0.6f);
+
+            Color c = startColor;
+            c.a = startColor.a * (1f - t);
+            image.color = c;
+
+            yield return null;
+        }
+
+        Destroy(rect.gameObject);
     }
 
     /// <summary>
