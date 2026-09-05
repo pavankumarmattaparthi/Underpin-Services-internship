@@ -2,8 +2,20 @@ using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
 
+/// <summary>
+/// Drives the slot game's HUD: bet buttons, gold/bet text, and the exit
+/// button. Talks to <see cref="SlotGameManager"/> to place bets and read
+/// the current gold/bet values.
+/// </summary>
 public class SlotUI : MonoBehaviour
 {
+    // =========================================================
+    // INSPECTOR REFERENCES
+    // (Assigned in the Scene - do not rename these fields)
+    // =========================================================
+
+    #region Inspector References
+
     [Header("Gold & Bet Text")]
     [SerializeField] private TMP_Text totalGoldText;
     [SerializeField] private TMP_Text betText;
@@ -15,6 +27,15 @@ public class SlotUI : MonoBehaviour
 
     [Header("Other Buttons")]
     [SerializeField] private Button exitBtn;
+
+    #endregion
+
+
+    // =========================================================
+    // UNITY LIFECYCLE
+    // =========================================================
+
+    #region Unity Lifecycle
 
     private void Start()
     {
@@ -28,6 +49,31 @@ public class SlotUI : MonoBehaviour
         // Update UI when the game starts
         UpdateUI();
     }
+
+    private void OnDestroy()
+    {
+        // Remove button listeners
+        if (tenGoldBetBtn != null)
+            tenGoldBetBtn.onClick.RemoveAllListeners();
+
+        if (fiftyGoldBetBtn != null)
+            fiftyGoldBetBtn.onClick.RemoveAllListeners();
+
+        if (hundredGoldBetBtn != null)
+            hundredGoldBetBtn.onClick.RemoveAllListeners();
+
+        if (exitBtn != null)
+            exitBtn.onClick.RemoveAllListeners();
+    }
+
+    #endregion
+
+
+    // =========================================================
+    // BUTTON HANDLERS
+    // =========================================================
+
+    #region Button Handlers
 
     /// <summary>
     /// Called when the player selects a betting amount.
@@ -50,8 +96,27 @@ public class SlotUI : MonoBehaviour
 
             ButtonState();
         }
-       
+
     }
+
+    /// <summary>
+    /// Called when the Exit button is pressed.
+    /// </summary>
+    private void ExitBtnPressed()
+    {
+        Debug.Log("Exit button pressed.");
+
+        Application.Quit();
+    }
+
+    #endregion
+
+
+    // =========================================================
+    // UI STATE
+    // =========================================================
+
+    #region UI State
 
     /// <summary>
     /// Updates all UI information.
@@ -69,15 +134,8 @@ public class SlotUI : MonoBehaviour
     }
 
     /// <summary>
-    /// Called when the Exit button is pressed.
+    /// Shows or hides the bet buttons (e.g. hidden while the reels spin).
     /// </summary>
-    private void ExitBtnPressed()
-    {
-        Debug.Log("Exit button pressed.");
-
-        Application.Quit();
-    }
-
     public void ButtonState(bool State)
     {
         tenGoldBetBtn.gameObject.SetActive(State);
@@ -85,25 +143,13 @@ public class SlotUI : MonoBehaviour
         hundredGoldBetBtn.gameObject.SetActive(State);
     }
 
-    private void OnDestroy()
-    {
-        // Remove button listeners
-        if (tenGoldBetBtn != null)
-            tenGoldBetBtn.onClick.RemoveAllListeners();
-
-        if (fiftyGoldBetBtn != null)
-            fiftyGoldBetBtn.onClick.RemoveAllListeners();
-
-        if (hundredGoldBetBtn != null)
-            hundredGoldBetBtn.onClick.RemoveAllListeners();
-
-        if (exitBtn != null)
-            exitBtn.onClick.RemoveAllListeners();
-    }
-
+    /// <summary>
+    /// Enables or disables each bet button based on whether the player
+    /// currently has enough gold to place that bet.
+    /// </summary>
     public void ButtonState()
     {
-        if(SlotGameManager.Instance.TotalGold >= 100)
+        if (SlotGameManager.Instance.TotalGold >= 100)
         {
             hundredGoldBetBtn.interactable = true;
         }
@@ -112,7 +158,7 @@ public class SlotUI : MonoBehaviour
             hundredGoldBetBtn.interactable = false;
         }
 
-        if(SlotGameManager.Instance.TotalGold >= 50)
+        if (SlotGameManager.Instance.TotalGold >= 50)
         {
             fiftyGoldBetBtn.interactable = true;
         }
@@ -121,7 +167,7 @@ public class SlotUI : MonoBehaviour
             fiftyGoldBetBtn.interactable = false;
         }
 
-        if(SlotGameManager.Instance.TotalGold >= 10)
+        if (SlotGameManager.Instance.TotalGold >= 10)
         {
             tenGoldBetBtn.interactable = true;
         }
@@ -130,4 +176,6 @@ public class SlotUI : MonoBehaviour
             tenGoldBetBtn.interactable = false;
         }
     }
+
+    #endregion
 }
