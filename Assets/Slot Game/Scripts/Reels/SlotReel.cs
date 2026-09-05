@@ -56,9 +56,11 @@ public class SlotReel : MonoBehaviour
 
         while (timer < totalSpinDuration)
         {
-            MoveChildren(currentSpinSpeed);
+            float deltaTime = Time.deltaTime;
 
-            timer += Time.deltaTime;
+            MoveChildren(currentSpinSpeed, deltaTime);
+
+            timer += deltaTime;
 
             yield return null;
         }
@@ -78,28 +80,11 @@ public class SlotReel : MonoBehaviour
     // MOVE CHILDREN DOWN
     // =========================================================
 
-    private void MoveChildren(float speed)
+    private void MoveChildren(float speed, float deltaTime)
     {
-        for (int i = 0; i < transform.childCount; i++)
-        {
-            Transform child = transform.GetChild(i);
+        int childCount = transform.childCount;
 
-            child.localPosition +=
-                Vector3.down * speed * Time.deltaTime;
-        }
-
-        RecycleLowestChild();
-    }
-
-
-    // =========================================================
-    // RECYCLE LOWEST CHILD
-    // =========================================================
-
-    private void RecycleLowestChild()
-    {
-        if (transform.childCount <= 1)
-            return;
+        Vector3 delta = Vector3.down * speed * deltaTime;
 
         Transform lowestChild = null;
         Transform highestChild = null;
@@ -107,11 +92,14 @@ public class SlotReel : MonoBehaviour
         float lowestY = Mathf.Infinity;
         float highestY = Mathf.NegativeInfinity;
 
-        // Find the physically lowest and highest children.
-        for (int i = 0; i < transform.childCount; i++)
+        for (int i = 0; i < childCount; i++)
         {
             Transform child = transform.GetChild(i);
 
+            child.localPosition += delta;
+
+            // Track the physically lowest and highest children
+            // in the same pass instead of a separate loop.
             float y = child.localPosition.y;
 
             if (y < lowestY)
@@ -127,7 +115,17 @@ public class SlotReel : MonoBehaviour
             }
         }
 
-        if (lowestChild == null || highestChild == null)
+        RecycleLowestChild(childCount, lowestChild, highestChild);
+    }
+
+
+    // =========================================================
+    // RECYCLE LOWEST CHILD
+    // =========================================================
+
+    private void RecycleLowestChild(int childCount, Transform lowestChild, Transform highestChild)
+    {
+        if (childCount <= 1 || lowestChild == null || highestChild == null)
             return;
 
         // Move the lowest child above the highest child.
@@ -159,6 +157,11 @@ public class SlotReel : MonoBehaviour
         if (childCount == 0)
             return;
 
+        // Cache singleton reads once instead of re-fetching them
+        // on every loop iteration below.
+        float targetY = SlotGameManager.Instance.targetY;
+        float childSpacing = SlotGameManager.Instance.childSpacing;
+
 
         // -----------------------------------------------------
         // Find the child closest to target Y.
@@ -172,11 +175,7 @@ public class SlotReel : MonoBehaviour
         {
             Transform child = transform.GetChild(i);
 
-            float distance =
-                Mathf.Abs(
-                    child.localPosition.y -
-                    SlotGameManager.Instance.targetY
-                );
+            float distance = Mathf.Abs(child.localPosition.y - targetY);
 
             if (distance < closestDistance)
             {
@@ -214,19 +213,6 @@ public class SlotReel : MonoBehaviour
 
 
         // -----------------------------------------------------
-        // Get all children.
-        // -----------------------------------------------------
-
-        Transform[] children =
-            new Transform[childCount];
-
-        for (int i = 0; i < childCount; i++)
-        {
-            children[i] = transform.GetChild(i);
-        }
-
-
-        // -----------------------------------------------------
         // CASE 1:
         // Selected child is the LAST child.
         // -----------------------------------------------------
@@ -235,16 +221,16 @@ public class SlotReel : MonoBehaviour
         {
             for (int i = 0; i < childCount; i++)
             {
-                Transform child = children[i];
+                Transform child = transform.GetChild(i);
 
                 int difference =
                     i - selectedIndex;
 
                 float newY =
-                    SlotGameManager.Instance.targetY -
+                    targetY -
                     (
                         difference *
-                        SlotGameManager.Instance.childSpacing
+                        childSpacing
                     );
 
                 child.localPosition =
@@ -258,13 +244,12 @@ public class SlotReel : MonoBehaviour
 
             // First child goes below selected child.
             Transform firstChild =
-                children[0];
+                transform.GetChild(0);
 
             firstChild.localPosition =
                 new Vector3(
                     firstChild.localPosition.x,
-                    SlotGameManager.Instance.targetY -
-                    SlotGameManager.Instance.childSpacing,
+                    targetY - childSpacing,
                     firstChild.localPosition.z
                 );
         }
@@ -279,16 +264,16 @@ public class SlotReel : MonoBehaviour
         {
             for (int i = 0; i < childCount; i++)
             {
-                Transform child = children[i];
+                Transform child = transform.GetChild(i);
 
                 int difference =
                     i - selectedIndex;
 
                 float newY =
-                    SlotGameManager.Instance.targetY -
+                    targetY -
                     (
                         difference *
-                        SlotGameManager.Instance.childSpacing
+                        childSpacing
                     );
 
                 child.localPosition =
@@ -302,13 +287,12 @@ public class SlotReel : MonoBehaviour
 
             // Last child goes above selected child.
             Transform lastChild =
-                children[childCount - 1];
+                transform.GetChild(childCount - 1);
 
             lastChild.localPosition =
                 new Vector3(
                     lastChild.localPosition.x,
-                    SlotGameManager.Instance.targetY +
-                    SlotGameManager.Instance.childSpacing,
+                    targetY + childSpacing,
                     lastChild.localPosition.z
                 );
         }
@@ -323,16 +307,16 @@ public class SlotReel : MonoBehaviour
         {
             for (int i = 0; i < childCount; i++)
             {
-                Transform child = children[i];
+                Transform child = transform.GetChild(i);
 
                 int difference =
                     i - selectedIndex;
 
                 float newY =
-                    SlotGameManager.Instance.targetY -
+                    targetY -
                     (
                         difference *
-                        SlotGameManager.Instance.childSpacing
+                        childSpacing
                     );
 
                 child.localPosition =
@@ -352,8 +336,7 @@ public class SlotReel : MonoBehaviour
         Vector3 selectedPosition =
             selectedChild.localPosition;
 
-        selectedPosition.y =
-            SlotGameManager.Instance.targetY;
+        selectedPosition.y = targetY;
 
         selectedChild.localPosition =
             selectedPosition;
