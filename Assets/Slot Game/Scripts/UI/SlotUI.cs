@@ -39,18 +39,18 @@ public class SlotUI : MonoBehaviour
             return;
         }
 
-        // Try to change the current bet
+        // Try to change the current bet. SetBet() now starts the spin
+        // itself once the bet is validated, so the reels can never be
+        // left un-spun with gold already deducted.
         bool betChanged = SlotGameManager.Instance.SetBet(gold);
 
         if (betChanged)
         {
             UpdateUI();
 
-            SlotGameManager.Instance.SpinallReels();
-
             ButtonState();
         }
-       
+
     }
 
     /// <summary>

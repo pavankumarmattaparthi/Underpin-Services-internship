@@ -8,6 +8,11 @@ public class SlotReel : MonoBehaviour
 
     private string currentSymbolName;
 
+    // The outcome, decided by SlotGameManager's weighted RNG before the
+    // spin animation starts. The reel's job is purely visual: land on
+    // whichever belt symbol matches this value.
+    private SlotGameManager.SlorRell targetSymbol;
+
     public string CurrentSymbolName => currentSymbolName;
     public bool IsSpinning => isSpinning;
 
@@ -22,10 +27,12 @@ public class SlotReel : MonoBehaviour
     // START SPIN
     // =========================================================
 
-    public void StartSpin()
+    public void StartSpin(SlotGameManager.SlorRell resultSymbol)
     {
         if (isSpinning)
             return;
+
+        targetSymbol = resultSymbol;
 
         currentSpinSpeed = Random.Range(
             SlotGameManager.Instance.SpinReelMinimumSpeed,
@@ -164,8 +171,13 @@ public class SlotReel : MonoBehaviour
 
 
         // -----------------------------------------------------
-        // Find the child closest to target Y.
+        // Find the belt symbol matching the RNG-decided result,
+        // breaking ties by whichever copy is closest to the
+        // payline. The outcome was already decided before the
+        // spin started - this just picks where to land on it.
         // -----------------------------------------------------
+
+        string targetName = targetSymbol.ToString();
 
         Transform selectedChild = null;
 
@@ -175,12 +187,38 @@ public class SlotReel : MonoBehaviour
         {
             Transform child = transform.GetChild(i);
 
+            if (!string.Equals(child.name, targetName, System.StringComparison.OrdinalIgnoreCase))
+                continue;
+
             float distance = Mathf.Abs(child.localPosition.y - targetY);
 
             if (distance < closestDistance)
             {
                 closestDistance = distance;
                 selectedChild = child;
+            }
+        }
+
+        // Defensive fallback: if the belt has no symbol matching the
+        // RNG result (a misconfigured belt), land on whichever symbol
+        // is nearest the payline instead of leaving the reel stuck.
+        if (selectedChild == null)
+        {
+            Debug.LogWarning(
+                $"{name}: no belt symbol matches RNG result '{targetName}'. Falling back to nearest symbol."
+            );
+
+            for (int i = 0; i < childCount; i++)
+            {
+                Transform child = transform.GetChild(i);
+
+                float distance = Mathf.Abs(child.localPosition.y - targetY);
+
+                if (distance < closestDistance)
+                {
+                    closestDistance = distance;
+                    selectedChild = child;
+                }
             }
         }
 
@@ -209,6 +247,10 @@ public class SlotReel : MonoBehaviour
             slorRell = symbol;
 
             SlotGameManager.Instance.SpinComplet();
+        }
+        else
+        {
+            Debug.LogWarning($"{name}: selected child '{selectedChild.name}' has no matching SlorRell enum value.");
         }
 
 
